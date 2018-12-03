@@ -167,6 +167,7 @@ void disassambleChip8Op(unsigned char *codebuffer, int pc)
 typedef struct Chip8State
 {
     uint8_t V[16]; //registers 0-f
+    uint8_t key_states[16]; //array of all the keys and their states, on or off
     uint16_t I; //memory address register
     uint16_t SP; //stack pointer
     uint16_t PC; //program counter
@@ -280,7 +281,57 @@ void EmulateChip8Op(Chip8State *state)
             }
             break;
         case 0x0d: UnimplementedInstruction(state); break;
-        case 0x0e: UnimplementedInstruction(state); break;
-        case 0x0f: UnimplementedInstruction(state); break;
+        case 0x0e: 
+            {
+                uint8_t reg = code[0] & 0x0f;
+                switch(code[1]) {
+                    case 0x9e: 
+                        {
+                            if(state->key_states[state->V[reg]] != 0) {
+                                state->PC += 2;
+                            }
+                        }
+                        break;
+                    case 0xa1: 
+                        {
+                            if(state->key_states[state->V[reg] == 0]) {
+                                state->PC += 2;
+                            }
+                        }
+                        break;
+                    default: UnimplementedInstruction(state); break;
+                }
+            }
+            state->PC += 2;
+            break;
+        case 0x0f: 
+            uint8_t reg = code[0] & 0x0f;
+            switch(code[1]) {
+                case 0x07: state->V[reg] = state->delay; break; //MOV VX, DELAY
+                case 0x15: state->delay = state->V[reg]; break; //MOV DELAY, VX
+                case 0x18: state->sound = state->V[reg]; break; //MOV SOUND, VX
+                case 0x33: //BSD MOV
+                    {
+                        //value of register to binary coded decimal
+                        uint8_t ones, tens, hundreds;
+                        uint8_t value = state->V[reg];
+
+                        //assignment of the values
+                        ones = value % 10;
+                        value /= 10;
+                        tens = value % 10;
+                        hundreds = value / 10;
+
+                        //make the necessary memory changes
+                        state->memory[state->I] = hundreds;
+                        state->memory[state->I + 1] = tens;
+                        state->memory[state->I + 2] = ones;
+
+                        state->PC += 2;
+                    }
+                    break;
+                
+            }
+            break; 
     }
 }
